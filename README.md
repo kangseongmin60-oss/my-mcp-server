@@ -6,12 +6,19 @@ TypeScript MCP SDK를 활용하여 Model Context Protocol (MCP) 서버를 빠르
 
 ```
 typescript-mcp-server-boilerplate/
+├── app/
+│   ├── api/mcp/route.ts  # Streamable HTTP MCP 엔드포인트
+│   ├── layout.tsx
+│   └── page.tsx
 ├── src/
-│   └── index.ts          # MCP 서버 메인 진입점
-├── build/                # 컴파일된 JavaScript 파일 (빌드 후 생성)
-├── package.json          # 프로젝트 의존성 및 스크립트
-├── tsconfig.json         # TypeScript 설정
-└── README.md            # 프로젝트 문서
+│   ├── index.ts          # MCP 도구/리소스/프롬프트 등록
+│   ├── image.ts          # Hugging Face 이미지 생성
+│   ├── qtime.ts
+│   ├── weather.ts
+│   └── postcode.ts
+├── package.json
+├── tsconfig.json
+└── README.md
 ```
 
 ## 🚀 시작하기
@@ -22,37 +29,21 @@ typescript-mcp-server-boilerplate/
 npm install
 ```
 
-### 2. 서버 이름 설정
-
-`src/index.ts` 파일에서 서버 이름을 수정하세요:
-
-```typescript
-const server = new McpServer({
-    name: 'typescript-mcp-server', // 여기를 원하는 서버 이름으로 변경
-    version: '1.0.0',
-    // 활성화 하고자 하는 기능 설정
-    capabilities: {
-        tools: {},
-        resources: {}
-    }
-})
-```
-
-> 💡 **팁**: 현재 보일러플레이트에는 이미 계산기와 인사 도구, 그리고 서버 정보 리소스가 예시로 구현되어 있습니다.
-
-### 3. 빌드
+### 2. 로컬 실행 (Streamable HTTP)
 
 ```bash
-npm run build
+npm run dev
 ```
 
-### 4. 실행
+서버는 `http://localhost:3000/api/mcp` 에서 MCP 클라이언트의 연결을 대기합니다.
 
-```bash
-node build/index.js
+### 3. Vercel 배포
+
+이 프로젝트는 Next.js App Router + `mcp-handler` 구조이므로 Vercel에 그대로 배포할 수 있습니다. 배포 후 MCP URL은 다음과 같습니다.
+
+```text
+https://<your-project>.vercel.app/api/mcp
 ```
-
-빌드가 성공하면 `build/` 디렉토리에 컴파일된 JavaScript 파일이 생성되고, 서버가 MCP 클라이언트의 연결을 대기합니다.
 
 ## 🛠️ 개발 가이드
 
@@ -228,12 +219,16 @@ server.resource(
 ## 📦 주요 의존성
 
 - **@modelcontextprotocol/sdk**: MCP 프로토콜 구현을 위한 공식 SDK
+- **mcp-handler**: Next.js/Vercel용 Streamable HTTP 어댑터
+- **next**: Vercel 배포를 위한 App Router
 - **zod**: TypeScript 우선 스키마 검증 라이브러리
 - **typescript**: TypeScript 컴파일러
 
 ## 🔧 스크립트
 
-- `npm run build`: TypeScript를 JavaScript로 컴파일하고 실행 권한 설정
+- `npm run dev`: Next.js 개발 서버 실행
+- `npm run build`: Vercel/프로덕션용 Next.js 빌드
+- `npm run start`: 프로덕션 서버 실행
 
 ## 📋 사용 예시
 
@@ -321,7 +316,7 @@ main().catch(console.error)
 
 ## 🔧 Cursor MCP 연결
 
-개발한 MCP 서버를 Cursor에서 테스트할 수 있습니다:
+개발한 MCP 서버를 Cursor에서 테스트할 수 있습니다.
 
 ### 설정 파일 수정
 
@@ -331,14 +326,20 @@ main().catch(console.error)
 {
     "mcpServers": {
         "typescript-mcp-server": {
-            "command": "node",
-            "args": ["/ABSOLUTE/PATH/TO/YOUR/PROJECT/build/index.js"]
+            "url": "http://localhost:3000/api/mcp",
+            "headers": {
+                "x-hf-token": "YOUR_HF_TOKEN"
+            }
         }
     }
 }
 ```
 
-> **주의**: 절대 경로를 사용해야 합니다. `pwd` 명령어로 현재 경로를 확인하세요.
+배포 후에는 `url`을 `https://<your-project>.vercel.app/api/mcp` 로 바꾸면 됩니다.
+
+이미지 생성 도구 `generate_image`는 클라이언트 헤더 `x-hf-token`에서 Hugging Face 토큰을 읽습니다. 헤더가 없으면 서버 환경 변수 `HF_TOKEN`을 사용합니다.
+
+> **주의**: 토큰을 git에 커밋하지 마세요. `.cursor/mcp.json`은 `.gitignore`에 포함되어 있습니다.
 
 ### 테스트 명령어
 

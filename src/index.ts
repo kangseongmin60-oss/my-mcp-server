@@ -1,16 +1,11 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
-import { formatLocalTime, lookupLocation } from './qtime.js'
-import { geocodeLocation, getWeather } from './weather.js'
-import { lookupPostcode } from './postcode.js'
-import { generateImage } from './image.js'
+import { formatLocalTime, lookupLocation } from './qtime'
+import { geocodeLocation, getWeather } from './weather'
+import { lookupPostcode } from './postcode'
+import { generateImage, resolveHfToken } from './image'
 
-// Create server instance
-const server = new McpServer({
-    name: 'YOUR_SERVER_NAME',
-    version: '1.0.0'
-})
+export const registerMcpServer = (server: McpServer) => {
 
 server.registerTool(
     'greet',
@@ -404,7 +399,7 @@ server.registerTool(
                 .describe('Hugging Face 모델 ID (기본값: black-forest-labs/FLUX.1-schnell)')
         })
     },
-    async ({ prompt, model }) => {
+    async ({ prompt, model }, extra) => {
         const textContent = (text: string, isError = false) => ({
             isError,
             content: [
@@ -415,7 +410,8 @@ server.registerTool(
             ]
         })
 
-        const result = await generateImage(prompt, model)
+        const token = resolveHfToken(extra.requestInfo?.headers)
+        const result = await generateImage(prompt, model, token)
         if ('error' in result) {
             return textContent(result.error, true)
         }
@@ -446,7 +442,7 @@ const fakeServerInfo = {
     hostname: 'mcp-lab-01.internal',
     region: 'ap-northeast-2',
     datacenter: 'seoul-mock-1',
-    transport: 'stdio',
+    transport: 'http',
     protocol: 'MCP',
     startedAt: '2026-09-17T06:00:00Z',
     uptimeSeconds: 42_600,
@@ -600,10 +596,4 @@ ${code}
         }
     }
 )
-
-server
-    .connect(new StdioServerTransport())
-    .catch(console.error)
-    .then(() => {
-        console.error('MCP server started')
-    })
+}

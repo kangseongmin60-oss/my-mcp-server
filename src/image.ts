@@ -13,7 +13,37 @@ type GeneratedImage = {
 const DEFAULT_MODEL = 'black-forest-labs/FLUX.1-schnell'
 const MAX_PROMPT_LENGTH = 2_000
 
-const getToken = () => process.env.HF_TOKEN?.trim() ?? ''
+export const HF_TOKEN_HEADER = 'x-hf-token'
+
+const headerValue = (
+    headers: Headers | Record<string, string | string[] | undefined> | undefined,
+    name: string
+) => {
+    if (!headers) {
+        return ''
+    }
+
+    if (typeof Headers !== 'undefined' && headers instanceof Headers) {
+        return headers.get(name)?.trim() ?? ''
+    }
+
+    const record = headers as Record<string, string | string[] | undefined>
+    const raw = record[name] ?? record[name.toLowerCase()]
+    if (Array.isArray(raw)) {
+        return raw[0]?.trim() ?? ''
+    }
+    return raw?.trim() ?? ''
+}
+
+export const resolveHfToken = (
+    headers?: Headers | Record<string, string | string[] | undefined>
+) => {
+    const fromHeader = headerValue(headers, HF_TOKEN_HEADER)
+    if (fromHeader) {
+        return fromHeader
+    }
+    return process.env.HF_TOKEN?.trim() ?? ''
+}
 
 const sniffMimeType = (bytes: Buffer, contentType: string) => {
     const headerType = contentType.split(';')[0]?.trim()
@@ -49,12 +79,12 @@ const toUserError = (error: unknown) => {
 
 export const generateImage = async (
     prompt: string,
-    model = DEFAULT_MODEL
+    model = DEFAULT_MODEL,
+    token = resolveHfToken()
 ): Promise<GeneratedImage | ApiError> => {
-    const token = getToken()
     if (!token) {
         return {
-            error: 'HF_TOKEN 환경 변수가 없습니다. .cursor/mcp.json의 env에 Hugging Face 토큰을 넣어 주세요.'
+            error: 'Hugging Face 토큰이 없습니다. MCP 클라이언트의 x-hf-token 헤더 또는 HF_TOKEN 환경 변수를 설정해 주세요.'
         }
     }
 
@@ -72,7 +102,7 @@ export const generateImage = async (
     try {
         const blob = await client.textToImage(
             {
-                provider: 'auto',
+                provider: 'fal-ai',
                 model: selectedModel,
                 inputs: trimmedPrompt,
                 parameters: {
